@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Elevation service</title>
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+       #map {
+        height: 100%;
+      }
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #description {
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      #infowindow-content .title {
+        font-weight: bold;
+      }
+
+      #infowindow-content {
+        display: none;
+      }
+
+      #map #infowindow-content {
+        display: inline;
+      }
+
+      .pac-card {
+        margin: 10px 10px 0 0;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        background-color: #fff;
+        font-family: Roboto;
+      }
+
+      #pac-container {
+        padding-bottom: 12px;
+        margin-right: 12px;
+      }
+
+      .pac-controls {
+        display: inline-block;
+        padding: 5px 11px;
+      }
+
+      .pac-controls label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }
+
+      #pac-input {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 500px;
+        border: 5px solid #999;
+      }
+
+      #pac-input:focus {
+        border-color: #4d90fe;
+      }
+
+      #title {
+        color: #fff;
+        background-color: #4d90fe;
+        font-size: 25px;
+        font-weight: 500;
+        padding: 6px 12px;
+      }
+      #target {
+        width: 345px;
+      }
+      #floating-panel {
+        position: absolute;
+        bottom: 10px;
+        left: 5%;
+        z-index: 5;
+        background-color: #fff;
+        padding: 5px;
+        border: 1px solid #999;
+        text-align: center;
+        font-family: 'Roboto','sans-serif';
+        line-height: 30px;
+        padding-left: 10px;
+      }
+
+    </style>
+  </head>
+  <body oncontextmenu="return false">
+  <input id="pac-input" class="controls" type="text" placeholder="Search Box" align="center">
+   <div id="floating-panel">
+       <form action="{% url 'latlonview' %}" method="post">{% csrf_token %}
+           <input type="hidden"  id="token" name="token" value="" />
+<input type="number" step="0.0000000000000001" id="lat" name="lat" value="" placeholder="LATITUDE"/>
+      <input type="number" step="0.0000000000000001" id="lon" name="lon" value="" placeholder="LONGITUDE"/>
+     <input type="number" step="0.0000000000000001" id="angle" name="angle" value="" placeholder="ANGLE"/>
+     <input type="number" step="0.0000000000000001" id="distance" name="distance" value="" placeholder="DISTANCE"/>
+           <input type="number" step="0.0000000000000001" id="elevation" name="elevation" value="" placeholder="ELEVATION"/>
+ <input type="submit" value="Submit" />
+
+           </form>
+       <form action="{% url 'task' %}" method="post">{% csrf_token %}
+           <input type="hidden"  id="token2" name="token2" value="" />
+           <input type="submit" value="FINISH" />
+       </form>
+
+   </div>
+
+    <div id="map"></div>
+    <script>
+
+
+
+
+     function initAutocomplete() {
+
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat:26, lng: 78},
+          zoom: 10,
+          mapTypeId: 'roadmap'
+        });
+
+        // Create the search box and link it to the UI element.
+        var input = document.getElementById('pac-input');
+        var searchBox = new google.maps.places.SearchBox(input);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+        // Bias the SearchBox results towards current map's viewport.
+        map.addListener('bounds_changed', function() {
+          searchBox.setBounds(map.getBounds());
+        });
+
+        var markers = [];
+        // Listen for the event fired when the user selects a prediction and retrieve
+        // more details for that place.
+        searchBox.addListener('places_changed', function() {
+          var places = searchBox.getPlaces();
+
+          if (places.length == 0) {
+            return;
+          }
+
+          // Clear out the old markers.
+          markers.forEach(function(marker) {
+            marker.setMap(null);
+          });
+          markers = [];
+
+          // For each place, get the icon, name and location.
+          var bounds = new google.maps.LatLngBounds();
+          places.forEach(function(place) {
+            if (!place.geometry) {
+              console.log("Returned place contains no geometry");
+              return;
+            }
+            var icon = {
+              url: place.icon,
+              size: new google.maps.Size(71, 71),
+              origin: new google.maps.Point(0, 0),
+              anchor: new google.maps.Point(17, 34),
+              scaledSize: new google.maps.Size(25, 25)
+            };
+
+            // Create a marker for each place.
+            markers.push(new google.maps.Marker({
+              map: map,
+              icon: icon,
+              title: place.name,
+              position: place.geometry.location
+            }));
+
+            if (place.geometry.viewport) {
+              // Only geocodes have viewport.
+              bounds.union(place.geometry.viewport);
+            } else {
+              bounds.extend(place.geometry.location);
+            }
+          });
+          map.fitBounds(bounds);
+        });
+
+        map.addListener('rightclick', function(event) {
+
+            document.getElementById('token2').value={{to}};
+
+
+        });
+
+        var elevator = new google.maps.ElevationService;
+        var infowindow = new google.maps.InfoWindow({map: map});
+        var distancewindow = new google.maps.InfoWindow({map: map});
+        var refwindow = new google.maps.InfoWindow({map: map});
+         var lon1;
+         var lat1;
+         var lon2;
+         var lat2;
+         var ele;
+         var brng;
+         var d;
+         var li=[];
+
+
+        // Add a listener for the click event. Display the elevation for the LatLng of
+        // the click inside the infowindow.
+
+
+        if ({{l}} != null && {{l}}.length>1){
+        for (var k =0; k <{{l}}.length-1; k++){
+        var line={{l}}[k+1];
+        console.log({lat: line[0], lng: line[1]});
+        li.push ({lat: line[0], lng:line[1]});
+        var marker = new google.maps.Marker({
+        position:{lat: line[0], lng:line[1]},
+        title: 'LONDE AT SERVICE',
+        animation:google.maps.Animation.DROP,
+        map: map
+        });
+
+
+
+        google.maps.event.addListener (marker,'click', function(event) {
+            document.getElementById('token').value = {{to}};
+         document.getElementById('lat').value = marker.getPosition().lat();
+          document.getElementById('lon').value = marker.getPosition().lng();
+          elevator.getElevationForLocations({
+          'locations': [event.latLng]
+        }, function(results, status) {
+        ele=results[0].elevation;
+          document.getElementById('elevation').value = results[0].elevation;
+           });
+           });
+        }
+        var flightPath = new google.maps.Polyline({
+          path: li,
+          geodesic: true,
+          strokeColor: '#FF0000',
+          strokeOpacity: 1.0,
+          strokeWeight: 2
+        });
+        flightPath.setMap(map);
+        }
+
+
+
+
+        map.addListener('click', function(event) {
+        document.getElementById('token').value = {{to}};
+        var marker = new google.maps.Marker({
+          position: event.latLng,
+          label: "V",
+          draggable: true,
+          title: 'VICTIMS EXACT LOCATION',
+          animation:google.maps.Animation.DROP,
+          map: map
+        });
+
+        google.maps.event.addListener (marker,'drag', function(event) {
+        lat2=marker.getPosition().lat();
+        lon2=marker.getPosition().lng();
+        document.getElementById('lat').value = marker.getPosition().lat();
+          document.getElementById('lon').value = marker.getPosition().lng();
+        elevator.getElevationForLocations({
+          'locations': [event.latLng]
+        }, function(results, status) {
+        le=results[0].elevation;
+           console.log(results[0].elevation);
+           document.getElementById('elevation').value = results[0].elevation;
+           });
+        });
+
+         google.maps.event.addListener (marker,'click', function(event) {
+         document.getElementById('lat').value = marker.getPosition().lat();
+          document.getElementById('lon').value = marker.getPosition().lng();
+          elevator.getElevationForLocations({
+          'locations': [event.latLng]
+        }, function(results, status) {
+        ele=results[0].elevation;
+          document.getElementById('elevation').value = results[0].elevation;
+           });
+        });
+
+        });
+
+}
+
+
+
+    </script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDuCQItK2CtSoafNZkJduTGgsjGfGi2Fw4&libraries=places&callback=initAutocomplete"
+         async defer></script>
+  </body>
+</html>

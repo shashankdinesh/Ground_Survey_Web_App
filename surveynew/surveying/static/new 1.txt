@@ -1,0 +1,121 @@
+Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024);
+        Network network = new BasicNetwork(new HurlStack());
+        requestQueue = new RequestQueue(cache, network);
+        requestQueue.start();
+
+        fusedLocationProviderClient = new FusedLocationProviderClient(this);
+
+        locationRequest = LocationRequest.create().setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                .setSmallestDisplacement(3)
+                .setInterval(5000);
+
+        System.out.println("Navigator Point 5");
+
+        mLocationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) {
+                    return;
+                }
+                for (Location location : locationResult.getLocations()) {
+                    latitude = location.getLatitude();
+                    longitude = location.getLongitude();
+                    JSONObject postData = new JSONObject();
+                    try {
+                        postData.put("latitude", latitude);
+                        postData.put("longitude", longitude);
+                        postData.put("phone_number", myID.PhoneNumber);
+                        System.out.println(postData);
+                    } catch (JSONException je) {
+                        je.printStackTrace();
+                    }
+
+                    JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(url, postData, new Response.Listener<JSONObject>() {
+
+                        @Override
+                        public void onResponse(JSONObject response) {
+
+                        }
+                    }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            VolleyLog.e("Error: ", error.getMessage());
+                        }
+                    });
+                    requestQueue.add(jsonObjectRequest);
+                }
+            }
+        };
+
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, new OnSuccessListener<Location>() {
+            @Override
+            public void onSuccess(Location location) {
+                if (location != null) {
+                    Log.i("MainActivity ", "" + location.getLongitude());
+                    latitude = location.getLatitude();
+                    longitude = location.getLongitude();
+                    //Intent intent = new Intent();
+                    //String ph = intent.getExtras().getString("number");
+                    System.out.println("My phone number from login activity is as follows    "+myID.PhoneNumber);
+                    JSONObject postData = new JSONObject();
+                    try {
+                        postData.put("latitude", latitude);
+                        postData.put("longitude", longitude);
+                        postData.put("phone_number", myID.PhoneNumber);
+                    } catch (JSONException je) {
+                        je.printStackTrace();
+                    }
+
+                    JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(url, postData, new Response.Listener<JSONObject>() {
+
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            System.out.print("Coordinates successfuly Stored");
+                        }
+                    }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            VolleyLog.e("Error: ", error.getMessage());
+                        }
+                    });
+                    requestQueue.add(jsonObjectRequest);
+                } else {
+                    System.out.println("Jhandu Bammm");
+                }
+            }
+        });
+
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startLocationUpdates();
+    }
+
+    @Override
+    protected void onPause() {
+
+        super.onPause();
+    }
+
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+
+    }
+
+    private void startLocationUpdates() {
+
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest,
+                mLocationCallback,
+                null /* Looper */);
+    }
+}
